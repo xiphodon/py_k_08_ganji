@@ -11,6 +11,7 @@ from bs4 import BeautifulSoup
 import requests
 import random
 import pymongo
+import writeCSV
 import get_category
 import time
 
@@ -19,6 +20,8 @@ ganjiDB = client['ganjiDB']
 url_list = ganjiDB['url_list']
 item_info = ganjiDB['item_info']
 test_url_list = []
+csv_iteminfo = writeCSV.writerCSV('iteminfo.csv')
+csv_urllist = writeCSV.writerCSV('urllist.csv')
 
 headers = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:49.0) Gecko/20100101 Firefox/49.0',
@@ -48,25 +51,37 @@ def get_random_proxy_ip():
     return proxy
 
 
-def get_all_link_from_one_category(url, pages=50):
+def get_all_link_from_one_category(url, pages=55):
     url_pages = ["{}{}{}/".format(url, "o", str(pages))]
 
     for each_url in url_pages:
-        try:
-            web_data = requests.get(each_url, headers=headers, proxies=get_random_proxy_ip())
-            # web_data = requests.get(each_url, headers=headers)
-            soup = BeautifulSoup(web_data.text, "lxml")
-            # print(soup)
-            if soup.find("div", "noinfo"):
-                pass
-            else:
-                link_list = soup.select("tr.zzinfo > td.t > a.t")
-                print(link_list)
-                for each in link_list:
-                    link = each.get("href").split("?")[0]
-                    url_list.insert_one({"url": link})
-                    test_url_list.append(link)
-        except:
+        download_html(each_url)
+
+
+def download_html(url, redownloadtimes=2):
+    try:
+        web_data = requests.get(url, headers=headers, proxies=get_random_proxy_ip())
+        # web_data = requests.get(each_url, headers=headers)
+        soup = BeautifulSoup(web_data.text, "lxml")
+        # print(soup)
+        if soup.find("div", "noinfo"):
+            pass
+        else:
+            link_list = soup.select("tr.zzinfo > td.t > a.t")
+            print(link_list)
+            for each in link_list:
+                link = each.get("href").split("?")[0]
+
+                # 存储在数据库中
+                # url_list.insert_one({"url": link})
+
+                # 存储为csv文件
+                csv_urllist([link])
+                test_url_list.append(link)
+    except:
+        if redownloadtimes > 0:
+            download_html(url, redownloadtimes - 1)
+        else:
             pass
 
 
@@ -94,10 +109,17 @@ def get_item_info_from_url(url):
             "url": url
         }
         # print(data)
-        item_info.insert_one(data)
+
+        # 存储在数据库中
+        # item_info.insert_one(data)
+
+        # 存储在csv文件中
+        try:
+            csv_iteminfo([data[each] for each in writeCSV.writerCSV.fields])
+        except:
+            pass
     else:
         pass
-
 
 # for each in get_category.category_list_respones.split():
 #     try:

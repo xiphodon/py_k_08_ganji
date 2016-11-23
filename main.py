@@ -36,4 +36,5 @@ def step_2():
         get_item_info_from_url(each_url)
 
 if __name__ == '__main__':
+    step_1()
     step_2()
